@@ -1,0 +1,107 @@
+#include <iostream>
+#include <string>
+#include <ostream>
+#include <istream>
+
+enum class Gender { Male, Female };
+
+struct Person {
+    std::array<char, 50> name; // Строковое поле типа C-string
+    int age;                   // Целочисленное поле
+    Gender gender;             // Поле типа enum class
+};
+void serializeString(std::ostream& stream, const std::array<char, 50>& str) {
+    stream << str.data(); // Сериализация строки
+}
+
+void serializeInt(std::ostream& stream, int value) {
+    stream << value; // Сериализация целого числа
+}
+
+void serializeEnum(std::ostream& stream, Gender gender) {
+    // Сериализация enum class как целого числа
+    if (gender == Gender::Male) {
+        stream << "M";
+    } else {
+        stream << "F";
+    }
+}
+
+void serializePerson(std::ostream& stream, const Person& person) {
+    serializeString(stream, person.name);
+    stream << ",";
+    serializeInt(stream, person.age);
+    stream << ",";
+    serializeEnum(stream, person.gender);
+}
+void deserializeString(std::istream& stream, std::array<char, 50>& str) {
+    stream.getline(str.data(), str.size(), ','); // Десериализация строки
+}
+
+void deserializeInt(std::istream& stream, int& value) {
+    std::string strValue;
+    std::getline(stream, strValue, ','); // Чтение значения как строки
+    value = std::stoi(strValue);         // Преобразование в int
+}
+
+void deserializeEnum(std::istream& stream, Gender& gender) {
+    char genderChar;
+    stream.get(genderChar); // Чтение символа
+    if (genderChar == 'M') {
+        gender = Gender::Male;
+    } else {
+        gender = Gender::Female;
+    }
+}
+
+bool deserializePerson(std::istream& stream, Person& person) {
+    deserializeString(stream, person.name);
+    deserializeInt(stream, person.age);
+    deserializeEnum(stream, person.gender);
+
+    // Проверка, успешно ли десериализовали все поля
+    return !stream.fail();
+}
+void serializePeople(std::ostream& stream, const std::vector<Person>& people) {
+    for (const auto& person : people) {
+        serializePerson(stream, person);
+        stream << "\n"; // Разделитель между объектами
+    }
+}
+
+std::vector<Person> deserializePeople(std::istream& stream) {
+    std::vector<Person> people;
+    std::string line;
+    while (std::getline(stream, line)) {
+        std::istringstream lineStream(line);
+        Person person;
+        if (deserializePerson(lineStream, person)) {
+            people.push_back(person);
+        } else {
+            // Ошибка десериализации объекта, прерываем чтение
+            break;
+        }
+    }
+    return people;
+}
+int main() {
+    std::ofstream outFile("people.csv"); // Создание файла для записи
+
+    std::vector<Person> people = {
+        {"Alice", 25, Gender::Female},
+        {"Bob", 30, Gender::Male},
+        // Добавьте еще людей при необходимости
+    };
+
+    serializePeople(outFile, people); // Сериализация в файл
+
+    outFile.close();
+
+    // Чтение из файла
+    std::ifstream inFile("people.csv");
+    std::vector<Person> loadedPeople = deserializePeople(inFile);
+
+    // Можно использовать loadedPeople для манипуляций с данными
+
+    return 0;
+}
